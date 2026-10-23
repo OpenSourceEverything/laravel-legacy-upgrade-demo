@@ -114,3 +114,13 @@ a real helper-name collision (see verification log). Monolog 3 is provided by
 the framework; the application's standard single-file channel needs no custom
 handler adaptation. The project already uses stable dependencies and has no
 legacy `$dates` model property or custom database expressions.
+
+## 10 → 11
+
+Kept the existing application/kernel/provider layout, as the official upgrade
+guide recommends rather than adopting the new starter structure. PHPUnit 11.5
+and the existing PHP 8.3 runtime satisfy requirements. Modern SQLite in this
+runtime meets the 3.26 minimum. Password rehashing stays enabled: our real
+fixture already uses the configured bcrypt work factor, so its saved hash was
+unchanged; a later legitimate cost increase may intentionally update hashes on
+login. No custom auth provider or column-altering migration needs conversion.

@@ -19,6 +19,7 @@ real HTTP checks and database continuity tests.
 | 8.83.29 | 7.4.33 | 9.6.38 | 16 tests, 71 assertions pass | pass |
 | 9.52.22 | 8.3.36 | 9.6.38 | 19 tests, 77 assertions pass | pass |
 | 10.50.3 | 8.3.36 | 10.5.66 | 19 tests, 77 assertions pass | pass |
+| 11.57.0 | 8.3.36 | 11.5.57 | 19 tests, 77 assertions pass | pass |
 
 Baseline data SHA-256:
 `a3621af78d0a46339c962c83e40903b0be7b6008de0f5357342ede165c1172bb`.
