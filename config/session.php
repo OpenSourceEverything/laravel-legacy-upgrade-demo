@@ -2,6 +2,10 @@
 
 return [
 
+    // Keep legacy sessions during this upgrade. Moving to JSON serialization
+    // would invalidate them; that can be a separate, explicitly planned change.
+    'serialization' => 'php',
+
     /*
     |--------------------------------------------------------------------------
     | Default Session Driver

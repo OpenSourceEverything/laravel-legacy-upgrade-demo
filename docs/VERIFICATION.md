@@ -21,6 +21,7 @@ real HTTP checks and database continuity tests.
 | 10.50.3 | 8.3.36 | 10.5.66 | 19 tests, 77 assertions pass | pass |
 | 11.57.0 | 8.3.36 | 11.5.57 | 19 tests, 77 assertions pass | pass |
 | 12.70.1 | 8.3.36 | 11.5.57 | 19 tests, 77 assertions pass | pass |
+| 13.38.0 | 8.3.36 | 12.5.40 | 19 tests, 77 assertions pass | pass |
 
 Baseline data SHA-256:
 `a3621af78d0a46339c962c83e40903b0be7b6008de0f5357342ede165c1172bb`.
@@ -99,3 +100,12 @@ Resolution succeeded with default security enforcement and `composer audit`
 reported no known advisories. This is a dependency audit, not a penetration test
 or proof that the app is production-ready. The historical exception remains
 visible in its Git checkpoints, not in supported-head configuration.
+
+## Final framework checkpoint
+
+Laravel 13.38.0 and PHPUnit 12.5.40 passed 19 tests / 77 assertions. The original
+5.3.8 SQLite fixture and canonical snapshot were retained across **every**
+checkpoint, with the same digest after the final upgrade. Default Composer
+advisory enforcement is enabled, `composer audit` reports no known advisories
+and `composer validate --strict` passes. Real HTTP and clean-export checks are
+recorded separately below as they are performed.

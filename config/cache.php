@@ -2,6 +2,9 @@
 
 return [
 
+    // No application objects are intentionally cached in this demonstration.
+    'serializable_classes' => false,
+
     /*
     |--------------------------------------------------------------------------
     | Default Cache Store

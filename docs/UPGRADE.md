@@ -132,3 +132,15 @@ resolved dependencies already supply Carbon 3. No UUID models, image uploads,
 custom nullable dependency injection or changed storage root is used; existing
 integer IDs and the explicit local storage path remain unchanged. Regression
 and persistent-data checks pass with PHPUnit 11.5.
+
+## 12 → 13
+
+Updated framework/PHPUnit to 13 / 12. Replaced the deprecated framework CSRF
+base-class reference with `PreventRequestForgery`, retaining the application's
+middleware class and empty exclusion list. Real CSRF rejection is still tested.
+Disabled arbitrary cached-object unserialization through `serializable_classes`.
+Explicitly retained PHP session serialization to avoid silently invalidating
+legacy sessions; JSON is a future hardening option requiring a planned logout
+and checks of flashed validation state. No new starter, paid migration service,
+Boost, Tinker or Pest dependency was needed. Final tests, row continuity,
+strict Composer validation and known-advisory audit pass.
