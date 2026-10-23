@@ -144,3 +144,37 @@ legacy sessions; JSON is a future hardening option requiring a planned logout
 and checks of flashed validation state. No new starter, paid migration service,
 Boost, Tinker or Pest dependency was needed. Final tests, row continuity,
 strict Composer validation and known-advisory audit pass.
+
+## Applying this method to a real inherited application
+
+This example verifies a small application and SQLite. It does not establish a
+client's upgrade effort or qualify an unseen production deployment.
+
+1. Inventory the actual system before changing dependencies: PHP/extensions,
+   Composer lockfile, database engine/version, authentication, third-party
+   packages, jobs, mail, uploads, external APIs and deployment procedure. Keep
+   keys and customer data out of Git and diagnostic output.
+2. Establish recovery access. Securely capture code/runtime/configuration and
+   database backups, then prove a restore in isolation. A backup existing is not
+   evidence that restoration works. Protect encryption keys needed to read data.
+3. Characterize important existing behavior with focused regression tests and
+   sanitized fixtures. Include permissions, validation, business workflows,
+   money/dates, background work and integration contracts—not just the homepage.
+4. Choose incremental PHP/framework/package transitions from official guides.
+   Review abandoned plugins and custom overrides; a constraint resolving does
+   not establish compatibility. Replace packages deliberately, keeping evidence
+   of the behavior each replacement must preserve.
+5. Rehearse against the actual database engine and a sanitized representative
+   copy. Inspect migrations, indexes, collations and foreign keys; verify rows,
+   relationships and business invariants. SQLite serial tests do not establish
+   MySQL concurrency, SQL modes or locking behavior.
+6. Review the change with the owner and plan the cutover: traffic/queue handling,
+   write quiescence where needed, backup, migrations, session changes, smoke
+   checks and error monitoring. Agree on acceptance and a recovery decision point.
+7. Treat recovery after new writes separately. Blindly restoring an old database
+   can lose legitimate records created after deployment; plan compatible schema
+   transitions, forward repair or an explicitly agreed write/recovery window.
+
+Only then estimate a client's delivery scope and deployment risk. The small
+inventory demonstration supplies reusable investigation/testing methods, not a
+promise that its runtime, packages, data model or timeline match another app.

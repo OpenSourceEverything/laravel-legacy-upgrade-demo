@@ -114,5 +114,7 @@ if ! (cd "$previous" && ./tools/run composer validate --strict && ./tools/run co
   exit 1
 fi
 printf 'All %s checkpoints and the supported-head audit passed.\n' "$index"
+printf 'Verified checkpoint summary (also retained in CI console logs):\n'
+cat "$run_root/summary.tsv"
 printf 'Report: %s/summary.tsv\n' "$run_root"
 printf 'Artifacts retained for review; no automatic cleanup performed.\n'

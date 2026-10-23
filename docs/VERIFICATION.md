@@ -171,3 +171,10 @@ artifacts remain in the reported temporary directory. The ordinary app's
 original digest stayed unchanged; its key and database were not mounted.
 The replay now additionally guards snapshot immutability and checks database
 file identity after each stage, not only before it.
+
+[Independent whole-chain CI run 39953780213](https://github.com/OpenSourceEverything/laravel-legacy-upgrade-demo/actions/runs/39953780213)
+passed on source `03e734a`. All 16 stages and the final validation/audit passed
+on a fresh standard GitHub runner, including the stricter post-stage file and
+snapshot checks. Regular endpoint CI on that source passed too. The replay
+prints its commit/digest summary into console logs so future CI evidence does
+not depend on retaining a runner's temporary files or uploading data artifacts.

@@ -45,6 +45,8 @@ uncommitted changes were tested. It stops at the first failed stage and retains
 logs and a `summary.tsv` report for investigation. No automatic cleanup. Allow
 several minutes and temporary disk space for historical vendor trees. Package
 downloads are reused, not installed dependencies. No server is exposed.
+The same summary is printed into CI console logs; temporary runner directories
+are not downloadable artifacts and are removed by GitHub when the job ends.
 
 The workflow **Replay every historical upgrade checkpoint** runs the same
 procedure manually in Actions. The ordinary push workflow checks the endpoints.
