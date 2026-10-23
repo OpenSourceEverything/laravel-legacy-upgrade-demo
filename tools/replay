@@ -24,6 +24,7 @@ previous=''
 first=''
 expected_digest=''
 identity=''
+snapshot_hash=''
 index=0
 for ref in "${refs[@]}"; do
   label=$ref
@@ -83,7 +84,13 @@ for ref in "${refs[@]}"; do
       first=$stage
       expected_digest=$digest
       identity=$(stat -c '%d:%i' "$first/database/demo.sqlite")
+      snapshot_hash=$(sha256sum "$first/storage/baseline-data.json" | cut -d ' ' -f1)
       printf 'Shared SQLite device:inode: %s\n' "$identity"
+    fi
+    if [[ "$(stat -c '%d:%i' "$stage/database/demo.sqlite")" != "$identity" ]] ||
+       [[ "$(sha256sum "$stage/storage/baseline-data.json" | cut -d ' ' -f1)" != "$snapshot_hash" ]]; then
+      printf '%s: database identity or original snapshot changed; see %s\n' "$label" "$log" >&2
+      exit 1
     fi
     if [[ "$digest" != "$expected_digest" ]]; then
       printf '%s: digest changed; see %s\n' "$label" "$log" >&2
@@ -102,7 +109,10 @@ done
 
 # Historical vulnerabilities must not be misrepresented as clean audits.
 # Enforce the security gate only on the supported current application.
-(cd "$previous" && ./tools/run composer validate --strict && ./tools/run composer audit) > "$run_root/current-audit.log" 2>&1
+if ! (cd "$previous" && ./tools/run composer validate --strict && ./tools/run composer audit) > "$run_root/current-audit.log" 2>&1; then
+  printf 'Supported-head validation/audit FAILED; see %s/current-audit.log\n' "$run_root" >&2
+  exit 1
+fi
 printf 'All %s checkpoints and the supported-head audit passed.\n' "$index"
 printf 'Report: %s/summary.tsv\n' "$run_root"
 printf 'Artifacts retained for review; no automatic cleanup performed.\n'

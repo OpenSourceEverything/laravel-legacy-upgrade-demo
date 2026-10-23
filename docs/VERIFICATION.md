@@ -154,3 +154,20 @@ Additional checks cover the stock ceiling, valid same-SKU/different-owner use,
 session-ID rotation at login/logout, a wrong CSRF token, category read/delete
 ownership and escaped stock-history text. All 22 tests / 98 assertions pass.
 No working inventory rows were used or changed by these tests.
+
+## Automated whole-chain replay
+
+`make replay` completed on source commit `f5a5da2`: all 15 historical
+checkpoints **plus current head** installed their own lockfiles and passed
+their version-specific tests and retained-data checks. Only the first export
+created/seeded a database; every later export used hard links to that same file.
+Device/inode identity matched at both endpoints. All 16 stage digests were
+`be652914b48307a7f2cdac05e0fab67355933a8afb37dc6084378bdc2da9d6b8`.
+Supported-head Composer validation and advisory audit also passed.
+
+This independently rehearses the complete upgrade from recorded source, not
+just the original engineering session or two endpoint installs. Diagnostic
+artifacts remain in the reported temporary directory. The ordinary app's
+original digest stayed unchanged; its key and database were not mounted.
+The replay now additionally guards snapshot immutability and checks database
+file identity after each stage, not only before it.
