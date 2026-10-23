@@ -124,3 +124,11 @@ runtime meets the 3.26 minimum. Password rehashing stays enabled: our real
 fixture already uses the configured bcrypt work factor, so its saved hash was
 unchanged; a later legitimate cost increase may intentionally update hashes on
 login. No custom auth provider or column-altering migration needs conversion.
+
+## 11 → 12
+
+Removed the EOL dependency-policy exception and verified a clean audit. The
+resolved dependencies already supply Carbon 3. No UUID models, image uploads,
+custom nullable dependency injection or changed storage root is used; existing
+integer IDs and the explicit local storage path remain unchanged. Regression
+and persistent-data checks pass with PHPUnit 11.5.
