@@ -32,3 +32,11 @@ Composer 2.2 LTS can run on old PHP; Composer 1 is not a reproducible dependency
 resolution strategy today. Composer PHARs are checksum-verified. Legacy
 dependencies can contain known vulnerabilities; any security-policy exception
 must be restricted to the historical demonstration and documented explicitly.
+
+## 5.3 → 5.4
+
+Updated within 5.3 first, then to 5.4.36. Cleared the compiled service cache
+before changing dependencies and removed the obsolete database `fetch` setting;
+5.4 consistently returns objects. The tests use the HTTP kernel rather than
+removed BrowserKit helpers, so no compatibility testing package was needed.
+Both checkpoints passed the unchanged regression and same-file data checks.

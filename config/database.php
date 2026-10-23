@@ -13,8 +13,6 @@ return [
     |
     */
 
-    'fetch' => PDO::FETCH_OBJ,
-
     /*
     |--------------------------------------------------------------------------
     | Default Database Connection Name

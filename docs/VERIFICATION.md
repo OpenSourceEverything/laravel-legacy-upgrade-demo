@@ -8,6 +8,8 @@ real HTTP checks and database continuity tests.
 | Framework | PHP | PHPUnit | HTTP regression result | Same-file data check |
 | --- | --- | --- | --- | --- |
 | 5.3.8 | 7.1.33 | 5.7.27 | 16 tests, 71 assertions pass | pass |
+| 5.3.31 | 7.1.33 | 5.7.27 | 16 tests, 71 assertions pass | pass |
+| 5.4.36 | 7.1.33 | 5.7.27 | 16 tests, 71 assertions pass | pass |
 
 Baseline data SHA-256:
 `a3621af78d0a46339c962c83e40903b0be7b6008de0f5357342ede165c1172bb`.
