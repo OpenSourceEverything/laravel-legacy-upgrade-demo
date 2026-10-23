@@ -49,3 +49,10 @@ Kept cookie serialization disabled (the patched framework default). Whoops is
 an optional development renderer, not needed with debug disabled. No mail,
 Passport, broadcasting or BrowserKit package is used, so their guide sections
 do not require application changes.
+
+## 5.5 → 5.6
+
+Added separate hashing and logging configuration, preserving bcrypt and the
+existing log file. Upgraded PHPUnit to 7.5 with Symfony 4 framework components.
+No custom Symfony classes, proxy package, mail customization or pagination is
+used. Kept Blade's safer default escaping rather than disabling double encoding.
