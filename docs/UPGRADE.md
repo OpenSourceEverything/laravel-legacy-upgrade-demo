@@ -71,3 +71,11 @@ to match new `bigIncrements` stubs. There are no numeric cache TTL calls or
 password-reset flows affected by changed defaults. Environment values contain
 no unquoted `#`. PHPUnit 7 remains supported on the legacy PHP runtime; the
 PHPUnit 8 jump is deferred until PHP is raised for Laravel 6.
+
+## 5.8 → 6
+
+Raised the container and Composer platform to PHP 7.4.33, then PHPUnit to 8.5.
+Composer moved Carbon 1 to 2. Searched application/configuration for removed
+string/array helpers and Input/Auth scaffolding calls; none required a helpers
+or UI compatibility package. Kept existing owner-scoped queries. The same
+SQLite file, including timestamps and password hashes, compared unchanged.
