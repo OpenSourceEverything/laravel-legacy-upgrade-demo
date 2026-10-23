@@ -63,3 +63,11 @@ Disabled console-output mocking in the test fixture so `artisan('db:seed')`
 continues to execute commands. Existing routes, templates and migrations do
 not override changed framework methods, use Blade's removed `or` operator or
 drop SQLite foreign keys. Error responses do not require the new starter SVGs.
+
+## 5.7 → 5.8
+
+Kept existing integer primary/foreign keys instead of rewriting old migrations
+to match new `bigIncrements` stubs. There are no numeric cache TTL calls or
+password-reset flows affected by changed defaults. Environment values contain
+no unquoted `#`. PHPUnit 7 remains supported on the legacy PHP runtime; the
+PHPUnit 8 jump is deferred until PHP is raised for Laravel 6.
