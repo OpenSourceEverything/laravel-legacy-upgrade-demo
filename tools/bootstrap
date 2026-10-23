@@ -25,3 +25,6 @@ if ! test -f database/demo.sqlite; then
 fi
 ./tools/run artisan migrate --force
 ./tools/run artisan db:seed --force
+if ! test -f storage/baseline-data.json; then
+  ./tools/run tools/snapshot.php --record
+fi

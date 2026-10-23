@@ -1,0 +1,44 @@
+name: Verify baseline and supported application
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        checkpoint: [baseline-5.3.8, current]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.checkpoint == 'current' && github.sha || matrix.checkpoint }}
+          persist-credentials: false
+      - name: Install exact locked dependencies and synthetic database
+        run: make setup
+      - name: Record fixture if the historical bootstrap predates automatic recording
+        run: |
+          if ! test -f storage/baseline-data.json; then
+            ./tools/run tools/snapshot.php --record
+          fi
+      - name: Regression and retained database checks
+        run: ./tools/checkpoint
+      - name: Audit supported head (historical baseline is intentionally vulnerable)
+        if: matrix.checkpoint == 'current'
+        run: make audit
+      - name: Real HTTP smoke on supported head
+        if: matrix.checkpoint == 'current'
+        run: |
+          ./tools/run serve > .cache/http-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/login > /dev/null; then break; fi
+            sleep 1
+          done
+          make smoke

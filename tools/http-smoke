@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Run against `make serve` in another terminal. Synthetic login only; do not
+# change stock, so this can also check the retained migration fixture.
+url=http://127.0.0.1:8080
+cookies=$(mktemp)
+page=$(mktemp)
+trap 'rm -f "$cookies" "$page"' EXIT
+curl --fail --silent --show-error --cookie-jar "$cookies" "$url/login" -o "$page"
+token=$(sed -n 's/.*name="_token" value="\([^"]*\)".*/\1/p' "$page" | head -n 1)
+test -n "$token" || { echo 'Login form has no CSRF token' >&2; exit 1; }
+status=$(curl --silent --show-error --cookie "$cookies" --cookie-jar "$cookies" \
+  --data-urlencode "_token=$token" --data-urlencode 'email=staff@example.test' \
+  --data-urlencode 'password=demo-password' -o "$page" -w '%{http_code}' "$url/login")
+test "$status" = 302 || { echo "Login failed: HTTP $status" >&2; exit 1; }
+curl --fail --silent --show-error --cookie "$cookies" "$url/items" -o "$page"
+grep -q 'HINGE-001' "$page"
+status=$(curl --silent --show-error --cookie "$cookies" -X POST -o "$page" \
+  -w '%{http_code}' "$url/login")
+test "$status" = 419 || { echo "Missing CSRF was not rejected: HTTP $status" >&2; exit 1; }
+echo 'Real HTTP smoke passed: CSRF form, cookie login, inventory, missing-token rejection.'

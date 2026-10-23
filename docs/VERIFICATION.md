@@ -109,3 +109,23 @@ checkpoint, with the same digest after the final upgrade. Default Composer
 advisory enforcement is enabled, `composer audit` reports no known advisories
 and `composer validate --strict` passes. Real HTTP and clean-export checks are
 recorded separately below as they are performed.
+
+## Independent clean-export and real HTTP checks
+
+Exported `baseline-5.3.8` from Git without vendor, caches, app key or SQLite.
+Installed its lockfile, initialized a fresh fixture and passed 16 tests / 71
+assertions. Exported `upgraded-13.38.0` separately, installed its lockfile, and
+carried the fresh baseline database/app key/snapshot into that modern export.
+No reset or reseed was used on the copied upgrade fixture. Modern migrations
+were a no-op; 19 tests / 77 assertions, data comparison and advisory audit pass.
+
+This independent fixture produced digest
+`b84e23eceec89154345cb567e1b53a5d3ed806fb4bcb1b6489e613d9c7f7a268`
+at both endpoints. Its salted hashes/timestamps differ from the first fixture,
+as expected; continuity is compared within each run, not against a universal
+fixture digest. The original fixture still has its original digest.
+
+`tools/http-smoke` passed against actual loopback servers for both 5.3.8 and
+13.38.0: form token, cookie-backed login, inventory HTML and a missing-token
+POST returning 419. Stock was not changed. Both temporary servers were stopped.
+This is HTTP verification, not a visual-browser or production deployment test.
