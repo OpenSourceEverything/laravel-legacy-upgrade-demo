@@ -56,3 +56,10 @@ Added separate hashing and logging configuration, preserving bcrypt and the
 existing log file. Upgraded PHPUnit to 7.5 with Symfony 4 framework components.
 No custom Symfony classes, proxy package, mail customization or pagination is
 used. Kept Blade's safer default escaping rather than disabling double encoding.
+
+## 5.6 → 5.7
+
+Disabled console-output mocking in the test fixture so `artisan('db:seed')`
+continues to execute commands. Existing routes, templates and migrations do
+not override changed framework methods, use Blade's removed `or` operator or
+drop SQLite foreign keys. Error responses do not require the new starter SVGs.

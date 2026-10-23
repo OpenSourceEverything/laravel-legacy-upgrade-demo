@@ -12,6 +12,10 @@ class InventoryTest extends TestCase
 {
     use DatabaseMigrations;
 
+    // 5.7 otherwise mocks Artisan output and defers command execution until
+    // the pending-command object is asserted. These tests need real seeding.
+    public $mockConsoleOutput = false;
+
     private function staff($name = 'owner')
     {
         return User::create(['name' => $name, 'email' => $name.'@example.test', 'password' => bcrypt('fixture-password', ['rounds' => 4])]);
