@@ -8,6 +8,7 @@ The baseline passes 16 tests / 71 assertions; the supported version passes
 19 tests / 77 assertions (the same HTTP contracts plus three checks of the
 data-comparison tool). Every intervening minor/major checkpoint was tested.
 See [exact results and encountered failures](docs/VERIFICATION.md).
+Fresh baseline/current checks also passed in [GitHub Actions](https://github.com/OpenSourceEverything/laravel-legacy-upgrade-demo/actions).
 
 ## Local setup
 

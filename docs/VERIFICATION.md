@@ -129,3 +129,12 @@ fixture digest. The original fixture still has its original digest.
 13.38.0: form token, cookie-backed login, inventory HTML and a missing-token
 POST returning 419. Stock was not changed. Both temporary servers were stopped.
 This is HTTP verification, not a visual-browser or production deployment test.
+
+## Independent GitHub Actions run
+
+[Run 39944016278](https://github.com/OpenSourceEverything/laravel-legacy-upgrade-demo/actions/runs/39944016278)
+passed on 2026-10-23 for source commit `d3ca924`: fresh baseline and current-head
+lockfile setup, regressions and data checks; supported-head dependency audit
+and real HTTP smoke. The baseline audit is deliberately not a pass gate because
+that historical version is known-vulnerable. CI verifies the endpoints, while
+the full intermediate sequence above was executed locally on one retained file.
