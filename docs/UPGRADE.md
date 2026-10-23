@@ -40,3 +40,12 @@ before changing dependencies and removed the obsolete database `fetch` setting;
 5.4 consistently returns objects. The tests use the HTTP kernel rather than
 removed BrowserKit helpers, so no compatibility testing package was needed.
 Both checkpoints passed the unchanged regression and same-file data checks.
+
+## 5.4 → 5.5
+
+Moved Composer hooks from deprecated `optimize` to `postAutoloadDump` and
+`package:discover`. Updated PHPUnit to 6 and Mockery to a PHP-compatible 1.x.
+Kept cookie serialization disabled (the patched framework default). Whoops is
+an optional development renderer, not needed with debug disabled. No mail,
+Passport, broadcasting or BrowserKit package is used, so their guide sections
+do not require application changes.
