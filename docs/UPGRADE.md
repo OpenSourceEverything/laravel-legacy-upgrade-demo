@@ -106,3 +106,11 @@ adapter is used; those integrations are not claimed as tested. Existing PHP
 overrides already satisfy the framework contracts. See the verification log
 for the explicit temporary security-policy exception and PDO representation
 diagnosis; neither is hidden by resetting the database.
+
+## 9 → 10
+
+Upgraded PHPUnit to 10.5 and moved XML coverage inclusion to `source`. Resolved
+a real helper-name collision (see verification log). Monolog 3 is provided by
+the framework; the application's standard single-file channel needs no custom
+handler adaptation. The project already uses stable dependencies and has no
+legacy `$dates` model property or custom database expressions.

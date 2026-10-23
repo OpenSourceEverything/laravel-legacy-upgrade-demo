@@ -32,32 +32,34 @@ class InventoryTest extends TestCase
         return $this->call($method, $uri, $data, [], [], $json ? ['HTTP_ACCEPT' => 'application/json'] : []);
     }
 
-    private function status($expected, $response)
+    // Avoid PHPUnit 10's final status() method. This helper asserts an HTTP
+    // response status; it does not replace PHPUnit's test-execution status.
+    private function assertHttpStatus($expected, $response)
     {
         $this->assertEquals($expected, $response->getStatusCode(), $response->getContent());
     }
 
     public function test_guests_cannot_read_or_change_inventory()
     {
-        $this->status(302, $this->http('GET', '/items'));
-        $this->status(401, $this->http('POST', '/items', [], true));
+        $this->assertHttpStatus(302, $this->http('GET', '/items'));
+        $this->assertHttpStatus(401, $this->http('POST', '/items', [], true));
         $this->assertEquals(0, Item::count());
     }
 
     public function test_login_accepts_hashed_password_and_logout_ends_authentication()
     {
         $user = $this->staff();
-        $this->status(200, $this->http('GET', '/login'));
-        $this->status(302, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password']));
+        $this->assertHttpStatus(200, $this->http('GET', '/login'));
+        $this->assertHttpStatus(302, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password']));
         $this->assertEquals($user->id, Auth::id());
-        $this->status(302, $this->http('POST', '/logout'));
+        $this->assertHttpStatus(302, $this->http('POST', '/logout'));
         $this->assertFalse(Auth::check());
     }
 
     public function test_wrong_password_does_not_authenticate()
     {
         $user = $this->staff();
-        $this->status(302, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'wrong']));
+        $this->assertHttpStatus(302, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'wrong']));
         $this->assertFalse(Auth::check());
     }
 
@@ -67,21 +69,21 @@ class InventoryTest extends TestCase
         // Laravel bypasses CSRF in its test environment. Enable the real check
         // for this request instead of mistaking that bypass for coverage.
         $this->app['env'] = 'local';
-        $this->status(419, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password']));
+        $this->assertHttpStatus(419, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password']));
         $this->assertFalse(Auth::check());
     }
 
     public function test_category_create_read_update_delete()
     {
         $this->actingAs($this->staff());
-        $this->status(200, $this->http('GET', '/categories/create'));
-        $this->status(302, $this->http('POST', '/categories', ['name' => 'Tools']));
+        $this->assertHttpStatus(200, $this->http('GET', '/categories/create'));
+        $this->assertHttpStatus(302, $this->http('POST', '/categories', ['name' => 'Tools']));
         $category = Category::first();
-        $this->status(200, $this->http('GET', '/categories'));
-        $this->status(200, $this->http('GET', '/categories/'.$category->id.'/edit'));
-        $this->status(302, $this->http('PUT', '/categories/'.$category->id, ['name' => 'Hardware']));
+        $this->assertHttpStatus(200, $this->http('GET', '/categories'));
+        $this->assertHttpStatus(200, $this->http('GET', '/categories/'.$category->id.'/edit'));
+        $this->assertHttpStatus(302, $this->http('PUT', '/categories/'.$category->id, ['name' => 'Hardware']));
         $this->assertEquals('Hardware', Category::find($category->id)->name);
-        $this->status(302, $this->http('DELETE', '/categories/'.$category->id));
+        $this->assertHttpStatus(302, $this->http('DELETE', '/categories/'.$category->id));
         $this->assertEquals(0, Category::count());
     }
 
@@ -92,26 +94,26 @@ class InventoryTest extends TestCase
         $category = $user->categories()->create(['name' => 'Tools']);
         $this->actingAs($user);
         $data = ['category_id' => $category->id, 'sku' => 'SPANNER', 'name' => 'Spanner', 'price_cents' => 599, 'user_id' => $other->id, 'quantity' => 900];
-        $this->status(200, $this->http('GET', '/items/create'));
-        $this->status(302, $this->http('POST', '/items', $data));
+        $this->assertHttpStatus(200, $this->http('GET', '/items/create'));
+        $this->assertHttpStatus(302, $this->http('POST', '/items', $data));
         $item = Item::first();
         $this->assertEquals($user->id, $item->user_id);
         $this->assertEquals(0, $item->quantity);
-        $this->status(200, $this->http('GET', '/items'));
-        $this->status(200, $this->http('GET', '/items/'.$item->id));
-        $this->status(200, $this->http('GET', '/items/'.$item->id.'/edit'));
+        $this->assertHttpStatus(200, $this->http('GET', '/items'));
+        $this->assertHttpStatus(200, $this->http('GET', '/items/'.$item->id));
+        $this->assertHttpStatus(200, $this->http('GET', '/items/'.$item->id.'/edit'));
         $data['name'] = 'Small spanner';
-        $this->status(302, $this->http('PUT', '/items/'.$item->id, $data));
+        $this->assertHttpStatus(302, $this->http('PUT', '/items/'.$item->id, $data));
         $this->assertEquals('Small spanner', Item::find($item->id)->name);
         $this->assertEquals(0, Item::find($item->id)->quantity);
-        $this->status(302, $this->http('DELETE', '/items/'.$item->id));
+        $this->assertHttpStatus(302, $this->http('DELETE', '/items/'.$item->id));
         $this->assertEquals(0, Item::count());
     }
 
     public function test_invalid_item_does_not_write_a_row()
     {
         $this->actingAs($this->staff());
-        $this->status(422, $this->http('POST', '/items', ['name' => '', 'price_cents' => -1], true));
+        $this->assertHttpStatus(422, $this->http('POST', '/items', ['name' => '', 'price_cents' => -1], true));
         $this->assertEquals(0, Item::count());
     }
 
@@ -120,7 +122,7 @@ class InventoryTest extends TestCase
         $user = $this->staff();
         $item = $this->item($user);
         $this->actingAs($user);
-        $this->status(422, $this->http('POST', '/items', ['category_id' => $item->category_id, 'sku' => $item->sku, 'name' => 'Duplicate', 'price_cents' => 1], true));
+        $this->assertHttpStatus(422, $this->http('POST', '/items', ['category_id' => $item->category_id, 'sku' => $item->sku, 'name' => 'Duplicate', 'price_cents' => 1], true));
         $this->assertEquals(1, Item::count());
     }
 
@@ -130,13 +132,13 @@ class InventoryTest extends TestCase
         $item = $this->item($owner);
         $this->actingAs($this->staff('other'));
         $response = $this->http('GET', '/items');
-        $this->status(200, $response);
+        $this->assertHttpStatus(200, $response);
         $this->assertFalse(strpos($response->getContent(), 'PART-1') !== false);
         foreach (['GET', 'PUT', 'DELETE'] as $method) {
-            $this->status(404, $this->http($method, '/items/'.$item->id));
+            $this->assertHttpStatus(404, $this->http($method, '/items/'.$item->id));
         }
-        $this->status(404, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 1, 'reason' => 'Attempt'], true));
-        $this->status(404, $this->http('PUT', '/categories/'.$item->category_id, ['name' => 'Changed']));
+        $this->assertHttpStatus(404, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 1, 'reason' => 'Attempt'], true));
+        $this->assertHttpStatus(404, $this->http('PUT', '/categories/'.$item->category_id, ['name' => 'Changed']));
         $this->assertEquals(1, Item::count());
         $this->assertEquals(0, StockMovement::count());
     }
@@ -145,7 +147,7 @@ class InventoryTest extends TestCase
     {
         $otherItem = $this->item($this->staff('other'));
         $this->actingAs($this->staff());
-        $this->status(422, $this->http('POST', '/items', ['category_id' => $otherItem->category_id, 'sku' => 'NEW', 'name' => 'Attempt', 'price_cents' => 100], true));
+        $this->assertHttpStatus(422, $this->http('POST', '/items', ['category_id' => $otherItem->category_id, 'sku' => 'NEW', 'name' => 'Attempt', 'price_cents' => 100], true));
         $this->assertEquals(1, Item::count());
     }
 
@@ -154,8 +156,8 @@ class InventoryTest extends TestCase
         $user = $this->staff();
         $item = $this->item($user);
         $this->actingAs($user);
-        $this->status(302, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 10, 'reason' => 'Receipt']));
-        $this->status(302, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => -3, 'reason' => 'Issue']));
+        $this->assertHttpStatus(302, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 10, 'reason' => 'Receipt']));
+        $this->assertHttpStatus(302, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => -3, 'reason' => 'Issue']));
         $stored = Item::find($item->id);
         $this->assertEquals(7, $stored->quantity);
         $this->assertEquals($stored->quantity, $stored->movements()->sum('delta'));
@@ -167,7 +169,7 @@ class InventoryTest extends TestCase
         $user = $this->staff();
         $item = $this->item($user);
         $this->actingAs($user);
-        $this->status(422, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => -1, 'reason' => 'Cannot issue'], true));
+        $this->assertHttpStatus(422, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => -1, 'reason' => 'Cannot issue'], true));
         $this->assertEquals(0, Item::find($item->id)->quantity);
         $this->assertEquals(0, StockMovement::count());
     }
@@ -178,7 +180,7 @@ class InventoryTest extends TestCase
         $item = $this->item($user);
         $this->actingAs($user);
         foreach ([0, 1.5, 'not a number'] as $delta) {
-            $this->status(422, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => $delta, 'reason' => 'Invalid'], true));
+            $this->assertHttpStatus(422, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => $delta, 'reason' => 'Invalid'], true));
         }
         $this->assertEquals(0, StockMovement::count());
     }
@@ -189,8 +191,8 @@ class InventoryTest extends TestCase
         $item = $this->item($user);
         $this->actingAs($user);
         $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 1, 'reason' => 'Receipt']);
-        $this->status(409, $this->http('DELETE', '/items/'.$item->id));
-        $this->status(409, $this->http('DELETE', '/categories/'.$item->category_id));
+        $this->assertHttpStatus(409, $this->http('DELETE', '/items/'.$item->id));
+        $this->assertHttpStatus(409, $this->http('DELETE', '/categories/'.$item->category_id));
         $this->assertEquals(1, StockMovement::count());
         $this->assertEquals(1, Item::count());
     }

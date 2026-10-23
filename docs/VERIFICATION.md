@@ -18,6 +18,7 @@ real HTTP checks and database continuity tests.
 | 7.30.7 | 7.4.33 | 8.5.56 | 16 tests, 71 assertions pass | pass |
 | 8.83.29 | 7.4.33 | 9.6.38 | 16 tests, 71 assertions pass | pass |
 | 9.52.22 | 8.3.36 | 9.6.38 | 19 tests, 77 assertions pass | pass |
+| 10.50.3 | 8.3.36 | 10.5.66 | 19 tests, 77 assertions pass | pass |
 
 Baseline data SHA-256:
 `a3621af78d0a46339c962c83e40903b0be7b6008de0f5357342ede165c1172bb`.
@@ -79,3 +80,12 @@ changed. Added narrowly scoped integer representation normalization to the
 verification tool, with three unit tests proving real changes, floats and nulls
 are not hidden. Did not edit the saved baseline. The rerun passed 19 tests /
 77 assertions and reproduced the original canonical snapshot digest.
+
+## PHPUnit 10 helper collision
+
+The first Laravel 10 checkpoint stopped before tests ran: our private HTTP
+helper `status()` collided with PHPUnit 10's final `TestCase::status()`.
+Renamed the helper and its call sites to `assertHttpStatus`, preserving every
+HTTP expectation. The rerun passed all 19 tests / 77 assertions with no warning
+and unchanged saved data. This was a test-infrastructure compatibility failure,
+not a change to the app's expected HTTP behavior.
