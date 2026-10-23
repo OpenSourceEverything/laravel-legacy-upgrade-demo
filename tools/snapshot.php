@@ -3,6 +3,7 @@
 // Compare actual rows, IDs, hashes, quantities and timestamps from the same
 // persistent SQLite file. PHPUnit's in-memory resets cannot prove continuity.
 require __DIR__.'/../bootstrap/autoload.php';
+require_once __DIR__.'/SnapshotRows.php';
 $app = require __DIR__.'/../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 $db = $app->make('db');
@@ -10,7 +11,7 @@ $snapshot = [];
 foreach (['users', 'categories', 'items', 'stock_movements'] as $table) {
     $snapshot[$table] = [];
     foreach ($db->table($table)->orderBy('id')->get() as $row) {
-        $snapshot[$table][] = (array) $row;
+        $snapshot[$table][] = Demo\Verification\SnapshotRows::normalize($table, (array) $row);
     }
 }
 if (count($snapshot['items']) === 0 || count($snapshot['stock_movements']) === 0) {

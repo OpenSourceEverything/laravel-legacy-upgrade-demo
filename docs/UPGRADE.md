@@ -96,3 +96,13 @@ legacy model factories to replace. The existing RouteServiceProvider explicitly
 sets its controller namespace, so the optional new-project routing convention
 does not require rewriting routes. Upgraded PHPUnit to 9.6 and replaced its
 deprecated XML coverage schema; the warning disappeared on the rerun.
+
+## 8 → 9
+
+Raised PHP to the pinned 8.3 runtime (actual 8.3.36) and Composer to 2.10.3.
+Laravel replaced SwiftMailer/Flysystem 1 with Symfony Mailer/Flysystem 3 through
+dependency resolution. No application mail sending, uploads or custom storage
+adapter is used; those integrations are not claimed as tested. Existing PHP
+overrides already satisfy the framework contracts. See the verification log
+for the explicit temporary security-policy exception and PDO representation
+diagnosis; neither is hidden by resetting the database.

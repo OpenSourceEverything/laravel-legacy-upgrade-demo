@@ -17,6 +17,7 @@ real HTTP checks and database continuity tests.
 | 6.20.45 | 7.4.33 | 8.5.56 | 16 tests, 71 assertions pass | pass |
 | 7.30.7 | 7.4.33 | 8.5.56 | 16 tests, 71 assertions pass | pass |
 | 8.83.29 | 7.4.33 | 9.6.38 | 16 tests, 71 assertions pass | pass |
+| 9.52.22 | 8.3.36 | 9.6.38 | 19 tests, 77 assertions pass | pass |
 
 Baseline data SHA-256:
 `a3621af78d0a46339c962c83e40903b0be7b6008de0f5357342ede165c1172bb`.
@@ -60,3 +61,21 @@ available from Debian's official archive (HTTP 200). Applied the archive
 mapping to this historical image as well as stretch. The rebuild and Laravel 6
 checkpoint passed. Package signatures remain enabled; the expiry exception is
 only for archived metadata, never the host's apt configuration.
+
+## Laravel 9 dependency and data checks
+
+Composer 2.10.3 refused the EOL Laravel 9 constraint because all matching
+versions were affected by advisories. Temporarily disabled **advisory blocking**
+in this demonstration's project configuration, not TLS, malware policy,
+platform checks or advisory reporting. `composer audit` still returned a
+failure with five advisories affecting Laravel. Remove this exception at the
+supported target; the historical tag is deliberately not safe for deployment.
+
+The initial 9.52.22 run passed 16 HTTP tests but failed the exact data comparison.
+Field-by-field diagnosis found only known integer columns changing from PHP
+strings to native integers on the new database/runtime path; their string
+values were identical. No rows, timestamps, passwords or stock quantities
+changed. Added narrowly scoped integer representation normalization to the
+verification tool, with three unit tests proving real changes, floats and nulls
+are not hidden. Did not edit the saved baseline. The rerun passed 19 tests /
+77 assertions and reproduced the original canonical snapshot digest.
