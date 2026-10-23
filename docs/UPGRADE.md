@@ -79,3 +79,11 @@ Composer moved Carbon 1 to 2. Searched application/configuration for removed
 string/array helpers and Input/Auth scaffolding calls; none required a helpers
 or UI compatibility package. Kept existing owner-scoped queries. The same
 SQLite file, including timestamps and password hashes, compared unchanged.
+
+## 6 → 7
+
+Changed the exception handler's report/render arguments from `Exception` to
+`Throwable` for Symfony 5 compatibility. Updated the secure-cookie fallback to
+null so request security can be inferred. No generated authentication package,
+date JSON API or custom Symfony implementation needs conversion. Existing
+HTML login, CSRF failures and owner-denial HTTP contracts still pass.
