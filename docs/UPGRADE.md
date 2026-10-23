@@ -87,3 +87,12 @@ Changed the exception handler's report/render arguments from `Exception` to
 null so request security can be inferred. No generated authentication package,
 date JSON API or custom Symfony implementation needs conversion. Existing
 HTML login, CSRF failures and owner-denial HTTP contracts still pass.
+
+## 7 → 8
+
+Moved DatabaseSeeder to `database/seeders` with its `Database\Seeders` namespace
+and a PSR-4 mapping. Existing migrations retain their identities. There are no
+legacy model factories to replace. The existing RouteServiceProvider explicitly
+sets its controller namespace, so the optional new-project routing convention
+does not require rewriting routes. Upgraded PHPUnit to 9.6 and replaced its
+deprecated XML coverage schema; the warning disappeared on the rerun.
