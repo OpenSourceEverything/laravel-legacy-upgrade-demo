@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+./tools/run artisan --version
+./tools/run vendor/bin/phpunit --version
+./tools/run artisan migrate --force
+./tools/run artisan view:clear
+./tools/run vendor/bin/phpunit
+./tools/run tools/snapshot.php
+git diff --check

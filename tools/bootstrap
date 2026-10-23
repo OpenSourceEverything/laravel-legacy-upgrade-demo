@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mkdir -p .tools
+for item in \
+  '2.2.25:8b3f41253363f0645402d1951d6e7f02adedeef29c16de6074763e463e25c23f' \
+  '2.10.3:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6'; do
+  version=${item%%:*}; checksum=${item#*:}; file=".tools/composer-$version.phar"
+  if ! test -f "$file"; then
+    curl --fail --location --silent --show-error \
+      "https://getcomposer.org/download/$version/composer.phar" -o "$file"
+  fi
+  if ! test "$(sha256sum "$file" | cut -d ' ' -f1)" = "$checksum"; then
+    echo "Composer checksum mismatch: $version" >&2; exit 1
+  fi
+done
+./tools/run composer install --no-interaction --prefer-dist
+if ! test -f .env; then
+  cp .env.example .env
+  chmod 600 .env
+  ./tools/run artisan key:generate --quiet
+fi
+if ! test -f database/demo.sqlite; then
+  touch database/demo.sqlite
+fi
+./tools/run artisan migrate --force
+./tools/run artisan db:seed --force

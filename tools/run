@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+profile=$(<.runtime)
+case "$profile" in
+  legacy) base='php:7.1.33-cli-stretch@sha256:be8781cf71200c60d7de65934e06cdc373ff43d0271581a8abe6a7a025a0e5f8'; composer=2.2.25 ;;
+  bridge) base='php:7.4.33-cli-bullseye@sha256:620a6b9f4d4feef2210026172570465e9d0c1de79766418d3affd09190a7fda5'; composer=2.2.25 ;;
+  modern) base='php:8.3-cli-bookworm@sha256:cdb77e306d6bb99db40e513fbe036ecc6c53b575cbcb7e581387845fef26d755'; composer=2.10.3 ;;
+  *) echo 'Unknown .runtime profile' >&2; exit 2 ;;
+esac
+image="laravel-upgrade-demo:$profile"
+if ! docker image inspect "$image" >/dev/null 2>&1; then
+  docker build --build-arg "BASE_IMAGE=$base" -f docker/runtime.Dockerfile -t "$image" .
+fi
+mkdir -p .cache/composer .cache/home
+network=(--network none)
+command=(php "$@")
+case "${1:-}" in
+  composer)
+    shift
+    network=(--network bridge)
+    command=(php "/app/.tools/composer-$composer.phar" "$@") ;;
+  serve)
+    network=(--network bridge -p 127.0.0.1:8080:8000)
+    command=(php -S 0.0.0.0:8000 -t public server.php) ;;
+esac
+# No host socket or home directory is mounted. Tests have no network. Only the
+# explicitly requested dependency installer and loopback server use networking.
+exec docker run --rm --init --cap-drop ALL --security-opt no-new-privileges \
+  --pids-limit 256 --memory 1g --user "$(id -u):$(id -g)" \
+  "${network[@]}" -e HOME=/app/.cache/home \
+  -e COMPOSER_CACHE_DIR=/app/.cache/composer -v "$PWD:/app" -w /app \
+  "$image" "${command[@]}"

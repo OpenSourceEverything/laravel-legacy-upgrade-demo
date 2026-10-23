@@ -1,0 +1,217 @@
+<?php
+
+use App\Category;
+use App\Item;
+use App\StockMovement;
+use App\User;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Support\Facades\Auth;
+
+/** HTTP contracts are kept across framework versions, not replaced by mocks. */
+class InventoryTest extends TestCase
+{
+    use DatabaseMigrations;
+
+    private function staff($name = 'owner')
+    {
+        return User::create(['name' => $name, 'email' => $name.'@example.test', 'password' => bcrypt('fixture-password', ['rounds' => 4])]);
+    }
+
+    private function item(User $user, $sku = 'PART-1')
+    {
+        $category = $user->categories()->create(['name' => 'Parts']);
+        return $user->items()->create(['category_id' => $category->id, 'sku' => $sku, 'name' => 'Hinge', 'price_cents' => 450]);
+    }
+
+    private function http($method, $uri, $data = [], $json = false)
+    {
+        return $this->call($method, $uri, $data, [], [], $json ? ['HTTP_ACCEPT' => 'application/json'] : []);
+    }
+
+    private function status($expected, $response)
+    {
+        $this->assertEquals($expected, $response->getStatusCode(), $response->getContent());
+    }
+
+    public function test_guests_cannot_read_or_change_inventory()
+    {
+        $this->status(302, $this->http('GET', '/items'));
+        $this->status(401, $this->http('POST', '/items', [], true));
+        $this->assertEquals(0, Item::count());
+    }
+
+    public function test_login_accepts_hashed_password_and_logout_ends_authentication()
+    {
+        $user = $this->staff();
+        $this->status(200, $this->http('GET', '/login'));
+        $this->status(302, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password']));
+        $this->assertEquals($user->id, Auth::id());
+        $this->status(302, $this->http('POST', '/logout'));
+        $this->assertFalse(Auth::check());
+    }
+
+    public function test_wrong_password_does_not_authenticate()
+    {
+        $user = $this->staff();
+        $this->status(302, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'wrong']));
+        $this->assertFalse(Auth::check());
+    }
+
+    public function test_real_csrf_middleware_rejects_a_missing_token()
+    {
+        $user = $this->staff();
+        // Laravel bypasses CSRF in its test environment. Enable the real check
+        // for this request instead of mistaking that bypass for coverage.
+        $this->app['env'] = 'local';
+        $this->status(419, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password']));
+        $this->assertFalse(Auth::check());
+    }
+
+    public function test_category_create_read_update_delete()
+    {
+        $this->actingAs($this->staff());
+        $this->status(200, $this->http('GET', '/categories/create'));
+        $this->status(302, $this->http('POST', '/categories', ['name' => 'Tools']));
+        $category = Category::first();
+        $this->status(200, $this->http('GET', '/categories'));
+        $this->status(200, $this->http('GET', '/categories/'.$category->id.'/edit'));
+        $this->status(302, $this->http('PUT', '/categories/'.$category->id, ['name' => 'Hardware']));
+        $this->assertEquals('Hardware', Category::find($category->id)->name);
+        $this->status(302, $this->http('DELETE', '/categories/'.$category->id));
+        $this->assertEquals(0, Category::count());
+    }
+
+    public function test_item_create_read_update_delete_and_ownership_cannot_be_injected()
+    {
+        $user = $this->staff();
+        $other = $this->staff('other');
+        $category = $user->categories()->create(['name' => 'Tools']);
+        $this->actingAs($user);
+        $data = ['category_id' => $category->id, 'sku' => 'SPANNER', 'name' => 'Spanner', 'price_cents' => 599, 'user_id' => $other->id, 'quantity' => 900];
+        $this->status(200, $this->http('GET', '/items/create'));
+        $this->status(302, $this->http('POST', '/items', $data));
+        $item = Item::first();
+        $this->assertEquals($user->id, $item->user_id);
+        $this->assertEquals(0, $item->quantity);
+        $this->status(200, $this->http('GET', '/items'));
+        $this->status(200, $this->http('GET', '/items/'.$item->id));
+        $this->status(200, $this->http('GET', '/items/'.$item->id.'/edit'));
+        $data['name'] = 'Small spanner';
+        $this->status(302, $this->http('PUT', '/items/'.$item->id, $data));
+        $this->assertEquals('Small spanner', Item::find($item->id)->name);
+        $this->assertEquals(0, Item::find($item->id)->quantity);
+        $this->status(302, $this->http('DELETE', '/items/'.$item->id));
+        $this->assertEquals(0, Item::count());
+    }
+
+    public function test_invalid_item_does_not_write_a_row()
+    {
+        $this->actingAs($this->staff());
+        $this->status(422, $this->http('POST', '/items', ['name' => '', 'price_cents' => -1], true));
+        $this->assertEquals(0, Item::count());
+    }
+
+    public function test_duplicate_sku_is_rejected_for_same_owner()
+    {
+        $user = $this->staff();
+        $item = $this->item($user);
+        $this->actingAs($user);
+        $this->status(422, $this->http('POST', '/items', ['category_id' => $item->category_id, 'sku' => $item->sku, 'name' => 'Duplicate', 'price_cents' => 1], true));
+        $this->assertEquals(1, Item::count());
+    }
+
+    public function test_other_users_records_are_not_visible_or_mutable()
+    {
+        $owner = $this->staff();
+        $item = $this->item($owner);
+        $this->actingAs($this->staff('other'));
+        $response = $this->http('GET', '/items');
+        $this->status(200, $response);
+        $this->assertFalse(strpos($response->getContent(), 'PART-1') !== false);
+        foreach (['GET', 'PUT', 'DELETE'] as $method) {
+            $this->status(404, $this->http($method, '/items/'.$item->id));
+        }
+        $this->status(404, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 1, 'reason' => 'Attempt'], true));
+        $this->status(404, $this->http('PUT', '/categories/'.$item->category_id, ['name' => 'Changed']));
+        $this->assertEquals(1, Item::count());
+        $this->assertEquals(0, StockMovement::count());
+    }
+
+    public function test_category_from_another_owner_cannot_be_used()
+    {
+        $otherItem = $this->item($this->staff('other'));
+        $this->actingAs($this->staff());
+        $this->status(422, $this->http('POST', '/items', ['category_id' => $otherItem->category_id, 'sku' => 'NEW', 'name' => 'Attempt', 'price_cents' => 100], true));
+        $this->assertEquals(1, Item::count());
+    }
+
+    public function test_receipt_and_issue_preserve_stock_ledger_balance()
+    {
+        $user = $this->staff();
+        $item = $this->item($user);
+        $this->actingAs($user);
+        $this->status(302, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 10, 'reason' => 'Receipt']));
+        $this->status(302, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => -3, 'reason' => 'Issue']));
+        $stored = Item::find($item->id);
+        $this->assertEquals(7, $stored->quantity);
+        $this->assertEquals($stored->quantity, $stored->movements()->sum('delta'));
+        $this->assertEquals(2, $stored->movements()->count());
+    }
+
+    public function test_negative_stock_is_rejected_without_partial_ledger_write()
+    {
+        $user = $this->staff();
+        $item = $this->item($user);
+        $this->actingAs($user);
+        $this->status(422, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => -1, 'reason' => 'Cannot issue'], true));
+        $this->assertEquals(0, Item::find($item->id)->quantity);
+        $this->assertEquals(0, StockMovement::count());
+    }
+
+    public function test_zero_or_fractional_adjustments_are_rejected()
+    {
+        $user = $this->staff();
+        $item = $this->item($user);
+        $this->actingAs($user);
+        foreach ([0, 1.5, 'not a number'] as $delta) {
+            $this->status(422, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => $delta, 'reason' => 'Invalid'], true));
+        }
+        $this->assertEquals(0, StockMovement::count());
+    }
+
+    public function test_delete_cannot_remove_stock_history_or_a_used_category()
+    {
+        $user = $this->staff();
+        $item = $this->item($user);
+        $this->actingAs($user);
+        $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 1, 'reason' => 'Receipt']);
+        $this->status(409, $this->http('DELETE', '/items/'.$item->id));
+        $this->status(409, $this->http('DELETE', '/categories/'.$item->category_id));
+        $this->assertEquals(1, StockMovement::count());
+        $this->assertEquals(1, Item::count());
+    }
+
+    public function test_html_is_escaped_in_catalog_and_movement_history()
+    {
+        $user = $this->staff();
+        $item = $this->item($user);
+        $item->name = '<script>alert(1)</script>';
+        $item->save();
+        $this->actingAs($user);
+        $response = $this->http('GET', '/items');
+        $this->assertNotFalse(strpos($response->getContent(), '&lt;script&gt;'));
+        $this->assertFalse(strpos($response->getContent(), '<script>') !== false);
+    }
+
+    public function test_demo_seed_is_idempotent_and_preserves_stock()
+    {
+        $this->artisan('db:seed');
+        $this->assertEquals(12, Item::first()->quantity);
+        $this->assertEquals(1, StockMovement::count());
+        $this->artisan('db:seed');
+        $this->assertEquals(1, User::count());
+        $this->assertEquals(1, Item::count());
+        $this->assertEquals(12, Item::first()->quantity);
+        $this->assertEquals(1, StockMovement::count());
+    }
+}
