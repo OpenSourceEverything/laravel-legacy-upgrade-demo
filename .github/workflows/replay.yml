@@ -1,0 +1,16 @@
+name: Replay every historical upgrade checkpoint
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  complete-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reinstall every lockfile and preserve one disposable SQLite file
+        run: make replay

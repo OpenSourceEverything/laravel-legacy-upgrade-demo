@@ -6,6 +6,7 @@ use App\StockMovement;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 /** HTTP contracts are kept across framework versions, not replaced by mocks. */
 class InventoryTest extends TestCase
@@ -50,10 +51,16 @@ class InventoryTest extends TestCase
     {
         $user = $this->staff();
         $this->assertHttpStatus(200, $this->http('GET', '/login'));
+        $guestSession = $this->app['session']->getId();
         $this->assertHttpStatus(302, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password']));
         $this->assertEquals($user->id, Auth::id());
+        // Successful authentication must rotate the guest session ID, not
+        // merely associate credentials with an attacker-known session.
+        $this->assertNotSame($guestSession, $this->app['session']->getId());
+        $authenticatedSession = $this->app['session']->getId();
         $this->assertHttpStatus(302, $this->http('POST', '/logout'));
         $this->assertFalse(Auth::check());
+        $this->assertNotSame($authenticatedSession, $this->app['session']->getId());
     }
 
     public function test_wrong_password_does_not_authenticate()
@@ -70,6 +77,7 @@ class InventoryTest extends TestCase
         // for this request instead of mistaking that bypass for coverage.
         $this->app['env'] = 'local';
         $this->assertHttpStatus(419, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password']));
+        $this->assertHttpStatus(419, $this->http('POST', '/login', ['email' => $user->email, 'password' => 'fixture-password', '_token' => 'deliberately-wrong-token']));
         $this->assertFalse(Auth::check());
     }
 
@@ -126,6 +134,21 @@ class InventoryTest extends TestCase
         $this->assertEquals(1, Item::count());
     }
 
+    public function test_same_sku_can_belong_to_different_owners()
+    {
+        // The unique key is (owner, SKU), not a global SKU restriction.
+        $this->item($this->staff(), 'SHARED-SKU');
+        $other = $this->staff('other');
+        $category = $other->categories()->create(['name' => 'Other parts']);
+        $this->actingAs($other);
+        $this->assertHttpStatus(302, $this->http('POST', '/items', [
+            'category_id' => $category->id, 'sku' => 'SHARED-SKU',
+            'name' => 'Other owner item', 'price_cents' => 250,
+        ]));
+        $this->assertEquals(2, Item::where('sku', 'SHARED-SKU')->count());
+        $this->assertEquals($other->id, Item::orderBy('id', 'desc')->first()->user_id);
+    }
+
     public function test_other_users_records_are_not_visible_or_mutable()
     {
         $owner = $this->staff();
@@ -139,7 +162,10 @@ class InventoryTest extends TestCase
         }
         $this->assertHttpStatus(404, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 1, 'reason' => 'Attempt'], true));
         $this->assertHttpStatus(404, $this->http('PUT', '/categories/'.$item->category_id, ['name' => 'Changed']));
+        $this->assertHttpStatus(404, $this->http('GET', '/categories/'.$item->category_id.'/edit'));
+        $this->assertHttpStatus(404, $this->http('DELETE', '/categories/'.$item->category_id));
         $this->assertEquals(1, Item::count());
+        $this->assertEquals(1, Category::count());
         $this->assertEquals(0, StockMovement::count());
     }
 
@@ -185,6 +211,37 @@ class InventoryTest extends TestCase
         $this->assertEquals(0, StockMovement::count());
     }
 
+    public function test_stock_balance_rolls_back_if_recording_the_movement_fails()
+    {
+        $user = $this->staff();
+        $item = $this->item($user);
+        $this->actingAs($user);
+        // Controlled fault injection in the in-memory test database only.
+        // Reject the SECOND write, after the controller has saved the balance.
+        // A validation failure before either write cannot prove atomic rollback.
+        DB::unprepared("CREATE TRIGGER reject_test_movement BEFORE INSERT ON stock_movements BEGIN SELECT RAISE(ABORT, 'Controlled ledger failure'); END");
+        $this->assertHttpStatus(500, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 5, 'reason' => 'Rollback test']));
+        $this->assertEquals(0, Item::find($item->id)->quantity);
+        $this->assertEquals(0, StockMovement::count());
+        $this->assertEquals(0, DB::transactionLevel());
+    }
+
+    public function test_stock_ceiling_is_rejected_without_a_partial_write()
+    {
+        $user = $this->staff();
+        $item = $this->item($user);
+        // A boundary fixture represents stock accumulated over many receipts.
+        // It starts internally consistent: quantity equals its opening ledger.
+        $item->quantity = 1000000;
+        $item->save();
+        $item->movements()->create(['delta' => 1000000, 'reason' => 'Boundary fixture']);
+        $this->actingAs($user);
+        $this->assertHttpStatus(422, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 1, 'reason' => 'Over ceiling'], true));
+        $this->assertEquals(1000000, Item::find($item->id)->quantity);
+        $this->assertEquals(1, StockMovement::count());
+        $this->assertEquals(1000000, $item->movements()->sum('delta'));
+    }
+
     public function test_delete_cannot_remove_stock_history_or_a_used_category()
     {
         $user = $this->staff();
@@ -207,6 +264,11 @@ class InventoryTest extends TestCase
         $response = $this->http('GET', '/items');
         $this->assertNotFalse(strpos($response->getContent(), '&lt;script&gt;'));
         $this->assertFalse(strpos($response->getContent(), '<script>') !== false);
+        $this->assertHttpStatus(302, $this->http('POST', '/items/'.$item->id.'/adjust', ['delta' => 1, 'reason' => '<script>history</script>']));
+        $history = $this->http('GET', '/items/'.$item->id);
+        $this->assertHttpStatus(200, $history);
+        $this->assertNotFalse(strpos($history->getContent(), '&lt;script&gt;history&lt;/script&gt;'));
+        $this->assertFalse(strpos($history->getContent(), '<script>') !== false);
     }
 
     public function test_demo_seed_is_idempotent_and_preserves_stock()

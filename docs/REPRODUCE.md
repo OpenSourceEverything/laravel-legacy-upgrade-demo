@@ -26,6 +26,31 @@ report a difference; it is deliberately not an ordinary uptime check.
 
 ## Replay every checkpoint on one database
 
+The simplest option, from a clean checkout with all tags available:
+
+```sh
+make replay
+```
+
+This exports each committed version into a fresh directory under `/tmp`,
+installs each lockfile into its own vendor tree, and runs tests/migrations/data
+checks. Each stage hard-links the **same** disposable SQLite file and the first
+stage's app key/snapshot. Later stages never reseed or replace it. A device/inode
+check enforces file identity; a constant digest enforces row continuity.
+The supported current stage must also pass Composer validation/audit.
+
+It does not switch your branch, mount your ordinary `.env` or open your normal
+inventory database. It refuses a dirty source checkout instead of pretending
+uncommitted changes were tested. It stops at the first failed stage and retains
+logs and a `summary.tsv` report for investigation. No automatic cleanup. Allow
+several minutes and temporary disk space for historical vendor trees. Package
+downloads are reused, not installed dependencies. No server is exposed.
+
+The workflow **Replay every historical upgrade checkpoint** runs the same
+procedure manually in Actions. The ordinary push workflow checks the endpoints.
+
+### Manual alternative
+
 Use a **new checkout**, not a working copy with your edits. Keep the app server
 stopped while changing versions. These commands leave source at a detached
 tag; this is intentional inspection, not a development branch.
@@ -70,6 +95,7 @@ hermetic snapshot of every OS package. Historical images use Debian's archive.
   changed quantities, text, timestamps and hashes still fail comparison.
 - Real HTTP smoke tests cover a server, cookies and CSRF, not visual rendering,
   concurrency, load, MySQL, deployment or a production security assessment.
-- GitHub Actions checks fresh baseline and current-head lockfile installs.
+- Regular GitHub Actions checks fresh baseline and current-head lockfile installs.
+  The separate manual replay workflow runs all checkpoints on one disposable file.
   Local version-by-version results are in `VERIFICATION.md`; check Actions before
   claiming a remote CI pass.

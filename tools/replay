@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source_root=$PWD
+source_commit=$(git rev-parse HEAD)
+
+# Archive committed source into disposable NON-Git directories. Never switch
+# this checkout's branch, read its .env, or open its working inventory database.
+if [[ -n $(git status --porcelain) ]]; then
+  echo 'Commit or resolve source changes first; replay uses committed HEAD only.' >&2
+  exit 2
+fi
+refs=(baseline-5.3.8 upgrade-5.3 upgrade-5.4 upgrade-5.5 upgrade-5.6
+      upgrade-5.7 upgrade-5.8 upgrade-6 upgrade-7 upgrade-8 upgrade-9
+      upgrade-10 upgrade-11 upgrade-12 upgraded-13.38.0 "$source_commit")
+for ref in "${refs[@]}"; do
+  git rev-parse --verify "$ref^{commit}" >/dev/null
+done
+
+run_root=$(mktemp -d "${TMPDIR:-/tmp}/laravel-upgrade-replay.XXXXXX")
+printf 'Replay artifacts retained at: %s\n' "$run_root"
+printf 'checkpoint\tcommit\tresult\tdata_sha256\n' > "$run_root/summary.tsv"
+previous=''
+first=''
+expected_digest=''
+identity=''
+index=0
+for ref in "${refs[@]}"; do
+  label=$ref
+  if [[ "$ref" == "$source_commit" ]]; then label=current; fi
+  stage=$(printf '%s/%02d-%s' "$run_root" "$index" "$label")
+  mkdir "$stage"
+  git archive "$ref" | tar -x -C "$stage"
+  commit=$(git rev-parse "$ref^{commit}")
+  log="$run_root/$label.log"
+  mode=initial
+  if [[ -n "$previous" ]]; then
+    mode=upgrade
+    # A hard link refers to the SAME SQLite file (device + inode), not a
+    # reseeded or restored replacement. All exports share the first app key
+    # and immutable comparison snapshot too. No host/user credentials copied.
+    ln "$first/database/demo.sqlite" "$stage/database/demo.sqlite"
+    ln "$first/.env" "$stage/.env"
+    ln "$first/storage/baseline-data.json" "$stage/storage/baseline-data.json"
+    test "$(stat -c '%d:%i' "$stage/database/demo.sqlite")" = "$identity"
+    # Only generated package downloads are reused; each export installs its
+    # own vendor tree from its own lockfile. This is not copying installed code.
+    cp -a "$previous/.tools" "$stage/.tools"
+    mkdir -p "$stage/.cache"
+    cp -al "$previous/.cache/composer" "$stage/.cache/composer"
+  fi
+  printf '%s: installing and checking…\n' "$label"
+  # A separate bash process makes fail-fast independent of shell conditional
+  # errexit quirks. Every command must succeed before a PASS can be recorded.
+  if bash -euo pipefail -c '
+    cd "$1"
+    if [[ "$2" == initial ]]; then
+      bash tools/bootstrap
+      if ! test -f storage/baseline-data.json; then
+        ./tools/run tools/snapshot.php --record
+      fi
+    else
+      ./tools/run composer install --no-interaction --prefer-dist
+    fi
+    ./tools/run --version
+    ./tools/run artisan --version
+    ./tools/run vendor/bin/phpunit --version
+    ./tools/run artisan migrate --force
+    ./tools/run artisan view:clear
+    ./tools/run vendor/bin/phpunit
+    ./tools/run tools/snapshot.php
+    # Do not silently carry only the main file if a future configuration leaves
+    # uncheckpointed SQLite sidecars. Stop for investigation instead.
+    test ! -s database/demo.sqlite-wal
+    test ! -s database/demo.sqlite-journal
+  ' replay-stage "$stage" "$mode" > "$log" 2>&1; then
+    digest=$(sed -n 's/^Data continuity OK; sha256=//p' "$log" | tail -n 1)
+    if [[ ! "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+      printf '%s: missing data-check evidence; see %s\n' "$label" "$log" >&2
+      exit 1
+    fi
+    if [[ -z "$first" ]]; then
+      first=$stage
+      expected_digest=$digest
+      identity=$(stat -c '%d:%i' "$first/database/demo.sqlite")
+      printf 'Shared SQLite device:inode: %s\n' "$identity"
+    fi
+    if [[ "$digest" != "$expected_digest" ]]; then
+      printf '%s: digest changed; see %s\n' "$label" "$log" >&2
+      exit 1
+    fi
+    printf '%s\t%s\tPASS\t%s\n' "$label" "$commit" "$digest" >> "$run_root/summary.tsv"
+    printf '%s: PASS, unchanged data\n' "$label"
+  else
+    printf '%s\t%s\tFAIL\t-\n' "$label" "$commit" >> "$run_root/summary.tsv"
+    printf '%s: FAILED; retained diagnostic log: %s\n' "$label" "$log" >&2
+    exit 1
+  fi
+  previous=$stage
+  index=$((index + 1))
+done
+
+# Historical vulnerabilities must not be misrepresented as clean audits.
+# Enforce the security gate only on the supported current application.
+(cd "$previous" && ./tools/run composer validate --strict && ./tools/run composer audit) > "$run_root/current-audit.log" 2>&1
+printf 'All %s checkpoints and the supported-head audit passed.\n' "$index"
+printf 'Report: %s/summary.tsv\n' "$run_root"
+printf 'Artifacts retained for review; no automatic cleanup performed.\n'

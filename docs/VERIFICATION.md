@@ -5,7 +5,7 @@ real HTTP checks and database continuity tests.
 
 ## Verified checkpoints
 
-| Framework | PHP | PHPUnit | HTTP regression result | Same-file data check |
+| Framework | PHP | PHPUnit | Regression suite | Same-file data check |
 | --- | --- | --- | --- | --- |
 | 5.3.8 | 7.1.33 | 5.7.27 | 16 tests, 71 assertions pass | pass |
 | 5.3.31 | 7.1.33 | 5.7.27 | 16 tests, 71 assertions pass | pass |
@@ -22,6 +22,10 @@ real HTTP checks and database continuity tests.
 | 11.57.0 | 8.3.36 | 11.5.57 | 19 tests, 77 assertions pass | pass |
 | 12.70.1 | 8.3.36 | 11.5.57 | 19 tests, 77 assertions pass | pass |
 | 13.38.0 | 8.3.36 | 12.5.40 | 19 tests, 77 assertions pass | pass |
+
+The table records immutable historical checkpoints, not a claim that later
+tests existed at the original baseline. Current head's strengthened suite
+passes **22 tests / 98 assertions**, with the original data digest unchanged.
 
 Baseline data SHA-256:
 `a3621af78d0a46339c962c83e40903b0be7b6008de0f5357342ede165c1172bb`.
@@ -138,3 +142,15 @@ lockfile setup, regressions and data checks; supported-head dependency audit
 and real HTTP smoke. The baseline audit is deliberately not a pass gate because
 that historical version is known-vulnerable. CI verifies the endpoints, while
 the full intermediate sequence above was executed locally on one retained file.
+
+## Stronger current-head transaction and security checks
+
+Added an in-memory SQLite trigger that deliberately rejects a movement insert
+**after** the balance update. The HTTP request fails and both writes roll back;
+the transaction depth returns to zero. This controlled negative test verifies
+atomicity; it is not a naturally encountered production incident.
+
+Additional checks cover the stock ceiling, valid same-SKU/different-owner use,
+session-ID rotation at login/logout, a wrong CSRF token, category read/delete
+ownership and escaped stock-history text. All 22 tests / 98 assertions pass.
+No working inventory rows were used or changed by these tests.

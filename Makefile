@@ -1,4 +1,4 @@
-.PHONY: setup test serve version audit data-check smoke
+.PHONY: setup test serve version audit data-check smoke replay
 setup:
 	bash tools/bootstrap
 test:
@@ -14,3 +14,5 @@ data-check:
 	./tools/run tools/snapshot.php
 smoke:
 	bash tools/http-smoke
+replay:
+	bash tools/replay

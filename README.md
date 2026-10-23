@@ -4,9 +4,10 @@ A small inventory application upgraded from **Laravel 5.3.8 to 13.38.0**
 incrementally while preserving behavior and SQLite data. This is
 a migration exercise, not a new modern application presented as an upgrade.
 
-The baseline passes 16 tests / 71 assertions; the supported version passes
-19 tests / 77 assertions (the same HTTP contracts plus three checks of the
-data-comparison tool). Every intervening minor/major checkpoint was tested.
+The baseline passes 16 tests / 71 assertions; current head passes
+22 tests / 98 assertions (preserved HTTP contracts, stronger transaction/security
+checks and three checks of the data-comparison tool). The tagged upgraded
+endpoint passed 19 tests / 77 assertions. Every intervening checkpoint was tested.
 See [exact results and encountered failures](docs/VERIFICATION.md).
 Fresh baseline/current checks also passed in [GitHub Actions](https://github.com/OpenSourceEverything/laravel-legacy-upgrade-demo/actions).
 
@@ -59,6 +60,11 @@ Use the lockfile (`composer install`) to reproduce a checkpoint. `composer
 update` resolves a new dependency set and is an intentional maintenance step,
 not routine setup. Composer runs in Docker through `tools/run`; no host PHP,
 Composer, Python venv or Node environment is required.
+
+`make replay` automates all historical checkpoints plus current committed head
+in disposable non-Git exports. It leaves this checkout, its key and its database
+untouched. Tests compare one shared synthetic SQLite file across every stage;
+logs and a summary are retained in the reported temporary directory.
 
 The baseline uses the official Laravel application scaffold at v5.3.0
 (f5dfa2057e800e15ecc1f5609016dfbc08fc643e), with framework **5.3.8** pinned
